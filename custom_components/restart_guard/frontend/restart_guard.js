@@ -811,7 +811,13 @@
     return found;
   }
 
-  /** Core, OS and Supervisor updates restart on their own; add-ons do not. */
+  /**
+   * Does installing this update restart Home Assistant by itself?
+   *
+   * Core and Supervisor do. Nothing else does - not the Operating System, not
+   * add-ons, not HACS integrations or cards. They stage the new version and
+   * leave Home Assistant running until somebody restarts it by hand.
+   */
   function isCoreUpdate(entityId) {
     if (CORE_UPDATE_ID.test(entityId)) return true;
     const hass = root() && root().hass;
@@ -1067,13 +1073,25 @@
   }
 
   /*
-   * An update dialog is a restart waiting to happen: core, OS and Supervisor
-   * updates all reboot when they finish. So it gets the verdict the moment it
-   * opens, the same as the restart dialog - not after Update is pressed, which
-   * is too late to be useful.
+   * Some update dialogs are a restart waiting to happen. Most are not.
    *
-   * Only when there is actually something to install. An update entity that is
-   * already up to date leads nowhere, and a banner on it would be noise.
+   * Core and Supervisor restart themselves when the install finishes, so those
+   * get the verdict the moment the dialog opens - not after Update is pressed,
+   * which is too late to be useful.
+   *
+   * Everything else installs and stops there. An add-on, a HACS integration, a
+   * Lovelace card, even the Operating System: the new version is staged and
+   * Home Assistant keeps running until you restart it yourself. Nothing is
+   * interrupted, so there is nothing to warn about - and a banner on those
+   * dialogs is worse than useless, because it appears so often that the one on
+   * a dialog that *does* restart stops being read. The restart you then do by
+   * hand is guarded in its own right, which is where the warning belongs.
+   *
+   * Same test the interception uses, so the banner appears exactly where the
+   * guard would actually step in. The two cannot drift apart.
+   *
+   * And only when there is something to install: an entity already up to date
+   * leads nowhere.
    */
   function watchUpdateDialogs() {
     setInterval(() => {
@@ -1082,6 +1100,7 @@
       const hass = root() && root().hass;
       const state = hass && hass.states[entityId];
       if (!state || state.state !== "on") return;
+      if (!isCoreUpdate(entityId)) return;
       showDialogBanner(); // no-ops if one is already in this dialog
     }, TICK_MS);
   }
