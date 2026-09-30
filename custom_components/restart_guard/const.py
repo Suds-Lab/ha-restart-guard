@@ -14,6 +14,11 @@ CONF_OPEN_ON_TAP = "open_on_tap"
 # every device - but hidden from the options form, which has the real toggle.
 CONF_TAP_ANSWERED = "tap_answered"
 CONF_SCHEDULER_PATH = "scheduler_path"
+# also watch the Control Center add-on's climate schedules, read from the sensor
+# it publishes; the entity id and a tap-target path are configurable.
+CONF_TRACK_CONTROL_CENTER = "track_control_center"
+CONF_CONTROL_CENTER_ENTITY = "control_center_entity"
+CONF_CONTROL_CENTER_PATH = "control_center_path"
 
 # evaluate conditions to stay quiet about automations that would do nothing
 DEFAULT_CHECK_CONDITIONS = True
@@ -27,11 +32,19 @@ DEFAULT_TAP_ANSWERED = False
 # means "no idea", and those rows open the entity's more-info dialog instead.
 DEFAULT_SCHEDULER_PATH = ""
 
+# Control Center publishes upcoming climate-schedule fires on this sensor; watched
+# only when track_control_center is on. Empty path -> its rows open the sensor's
+# more-info dialog (set it to the Control Center ingress panel path to deep-link).
+DEFAULT_TRACK_CONTROL_CENTER = True
+DEFAULT_CONTROL_CENTER_ENTITY = "sensor.control_center_schedules"
+DEFAULT_CONTROL_CENTER_PATH = ""
+
 # Options that only change what the banner does, not what it computes. Changing
 # one must not reload the config entry: a reload takes the sensor away for a
 # moment, and the moment in question is while somebody has the restart dialog
 # open. The sensor reads its options live, so a state write is enough.
-DISPLAY_OPTIONS = (CONF_OPEN_ON_TAP, CONF_TAP_ANSWERED, CONF_SCHEDULER_PATH)
+DISPLAY_OPTIONS = (CONF_OPEN_ON_TAP, CONF_TAP_ANSWERED, CONF_SCHEDULER_PATH,
+                   CONF_CONTROL_CENTER_PATH)
 
 # sets open_on_tap from the banner's own yes/no prompt
 SERVICE_SET_OPEN_ON_TAP = "set_open_on_tap"

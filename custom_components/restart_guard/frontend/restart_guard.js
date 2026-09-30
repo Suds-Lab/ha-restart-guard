@@ -361,7 +361,23 @@
       const path = guardAttrs().scheduler_path;
       if (path) return String(path);
     }
+    // A Control Center row is about a climate change the add-on will make; the
+    // add-on has its own panel, so open that if we were told where it lives.
+    if (isControlCenter(state)) {
+      const path = guardAttrs().control_center_path;
+      if (path) return String(path);
+    }
     return null; // anything else opens its more-info dialog instead
+  }
+
+  /**
+   * The Control Center sensor, recognised by the marker attribute it publishes
+   * rather than by its id - so a renamed sensor is still recognised, matching
+   * how `control_center.collect` reads it on the backend.
+   */
+  function isControlCenter(state) {
+    const attrs = (state && state.attributes) || {};
+    return attrs.rg_source === "control_center";
   }
 
   /**
@@ -429,6 +445,7 @@
    */
   function kindOf(item) {
     if (item && item.source === "schedule") return "Scheduler";
+    if (item && item.source === "control_center") return "Control Center";
     return String((item && item.entity_id) || "").startsWith("script.")
       ? "Script"
       : "Automation";

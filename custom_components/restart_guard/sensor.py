@@ -37,21 +37,27 @@ from .calc import (
 )
 from .conditions import ConditionEvaluator
 from .schedules import collect as collect_schedules
+from .control_center import collect as collect_control_center
 from .const import (
     CONF_CHECK_CONDITIONS,
+    CONF_CONTROL_CENTER_ENTITY,
+    CONF_CONTROL_CENTER_PATH,
     CONF_LOOKAHEAD,
     CONF_MIN_INTERVAL,
     CONF_OPEN_ON_TAP,
     CONF_SCHEDULER_PATH,
     CONF_TAP_ANSWERED,
+    CONF_TRACK_CONTROL_CENTER,
     CONF_TRACK_SCHEDULES,
     CONF_WARN_WINDOW,
     CONDITION_HORIZON,
     DEFAULT_CHECK_CONDITIONS,
+    DEFAULT_CONTROL_CENTER_ENTITY,
     DEFAULT_LOOKAHEAD,
     DEFAULT_MIN_INTERVAL,
     DEFAULT_OPEN_ON_TAP,
     DEFAULT_TAP_ANSWERED,
+    DEFAULT_TRACK_CONTROL_CENTER,
     DEFAULT_TRACK_SCHEDULES,
     DEFAULT_WARN_WINDOW,
     DOMAIN,
@@ -267,6 +273,7 @@ class RestartGuardSensor(SensorEntity):
         self._conditions = ConditionEvaluator(hass, self._changes_before)
         self._schedules_scanned = 0
         self._schedule_source = "not checked"
+        self._control_center_scanned = 0
         self._value: float = NOTHING_DUE
         self._error: str | None = None
         self._scanned = 0
@@ -347,6 +354,9 @@ class RestartGuardSensor(SensorEntity):
             # this is whichever dashboard the user keeps their scheduler card
             # on; empty means the row opens the entity dialog instead.
             "scheduler_path": self._scheduler_path(),
+            # where a Control Center row leads: the add-on's own panel. Empty
+            # means the row opens the sensor's more-info dialog instead.
+            "control_center_path": self._control_center_path(),
             "automations_scanned": self._scanned,
             # what kinds of trigger were actually seen, so "it isn't warning me"
             # can be told apart from "it never saw that trigger at all"
@@ -365,6 +375,7 @@ class RestartGuardSensor(SensorEntity):
             "state_debug": self._prediction_log,
             "schedules_scanned": self._schedules_scanned,
             "schedule_conditions": self._schedule_source,
+            "control_center_scanned": self._control_center_scanned,
             "error": self._error,
         }
 
@@ -442,6 +453,33 @@ class RestartGuardSensor(SensorEntity):
                 )
             except Exception:  # noqa: BLE001 - scheduler is optional, never fatal
                 _LOGGER.exception("Restart Guard could not read Scheduler schedules")
+
+        # Control Center add-on climate schedules, read from the sensor it
+        # publishes. Like Scheduler schedules they carry no conditions, so they
+        # are merged after the condition filtering rather than through it.
+        self._control_center_scanned = 0
+        if self._option_bool(
+            CONF_TRACK_CONTROL_CENTER, DEFAULT_TRACK_CONTROL_CENTER
+        ):
+            try:
+                cc_entity = str(
+                    self._option(
+                        CONF_CONTROL_CENTER_ENTITY,
+                        DEFAULT_CONTROL_CENTER_ENTITY,
+                    )
+                    or ""
+                ).strip()
+                cc_items, self._control_center_scanned = collect_control_center(
+                    self.hass.states.get(cc_entity) if cc_entity else None,
+                    now,
+                    self._option(CONF_LOOKAHEAD, DEFAULT_LOOKAHEAD),
+                    dt_util.parse_datetime,
+                )
+                items = sorted(items + cc_items, key=lambda i: i["minutes"])
+            except Exception:  # noqa: BLE001 - Control Center is optional, never fatal
+                _LOGGER.exception(
+                    "Restart Guard could not read Control Center schedules"
+                )
 
         self._error = None
         # Flag the runs that a restart cancels outright rather than delays.
@@ -528,6 +566,19 @@ class RestartGuardSensor(SensorEntity):
         nothing is a bad way to find out it was mistyped.
         """
         raw = str(self._options.get(CONF_SCHEDULER_PATH, "") or "").strip()
+        if not raw:
+            return ""
+        return raw if raw.startswith("/") else f"/{raw}"
+
+    def _control_center_path(self) -> str:
+        """The panel a Control Center row should open, or "" for none.
+
+        Same normalising as `_scheduler_path`: a leading slash so a hand-typed
+        `local_control_center`, `/local_control_center` and a stray trailing
+        space all mean the same thing. Empty leaves the row on the sensor
+        dialog.
+        """
+        raw = str(self._options.get(CONF_CONTROL_CENTER_PATH, "") or "").strip()
         if not raw:
             return ""
         return raw if raw.startswith("/") else f"/{raw}"

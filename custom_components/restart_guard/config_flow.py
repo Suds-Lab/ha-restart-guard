@@ -12,18 +12,24 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_CHECK_CONDITIONS,
+    CONF_CONTROL_CENTER_ENTITY,
+    CONF_CONTROL_CENTER_PATH,
     CONF_LOOKAHEAD,
     CONF_MIN_INTERVAL,
     CONF_OPEN_ON_TAP,
     CONF_SCHEDULER_PATH,
     CONF_TAP_ANSWERED,
+    CONF_TRACK_CONTROL_CENTER,
     CONF_TRACK_SCHEDULES,
     CONF_WARN_WINDOW,
     DEFAULT_CHECK_CONDITIONS,
+    DEFAULT_CONTROL_CENTER_ENTITY,
+    DEFAULT_CONTROL_CENTER_PATH,
     DEFAULT_LOOKAHEAD,
     DEFAULT_MIN_INTERVAL,
     DEFAULT_OPEN_ON_TAP,
     DEFAULT_SCHEDULER_PATH,
+    DEFAULT_TRACK_CONTROL_CENTER,
     DEFAULT_TRACK_SCHEDULES,
     DEFAULT_WARN_WINDOW,
     DOMAIN,
@@ -58,6 +64,9 @@ def _schema(current: dict[str, Any]) -> vol.Schema:
     watching_schedules = bool(
         current.get(CONF_TRACK_SCHEDULES, DEFAULT_TRACK_SCHEDULES)
     )
+    watching_control_center = bool(
+        current.get(CONF_TRACK_CONTROL_CENTER, DEFAULT_TRACK_CONTROL_CENTER)
+    )
 
     fields: dict[Any, Any] = {
             vol.Required(
@@ -88,6 +97,12 @@ def _schema(current: dict[str, Any]) -> vol.Schema:
                 ),
             ): selector.BooleanSelector(),
             vol.Required(
+                CONF_TRACK_CONTROL_CENTER,
+                default=current.get(
+                    CONF_TRACK_CONTROL_CENTER, DEFAULT_TRACK_CONTROL_CENTER
+                ),
+            ): selector.BooleanSelector(),
+            vol.Required(
                 CONF_OPEN_ON_TAP,
                 default=current.get(CONF_OPEN_ON_TAP, DEFAULT_OPEN_ON_TAP),
             ): selector.BooleanSelector(),
@@ -104,6 +119,35 @@ def _schema(current: dict[str, Any]) -> vol.Schema:
                 description={
                     "suggested_value": current.get(
                         CONF_SCHEDULER_PATH, DEFAULT_SCHEDULER_PATH
+                    )
+                },
+            )
+        ] = selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+        )
+
+    if watching_control_center:
+        # Which sensor Control Center publishes on, and where a Control Center
+        # row should open. Both only make sense while Control Center is watched,
+        # so they follow the same reveal-on-save pattern as the scheduler path.
+        fields[
+            vol.Optional(
+                CONF_CONTROL_CENTER_ENTITY,
+                description={
+                    "suggested_value": current.get(
+                        CONF_CONTROL_CENTER_ENTITY, DEFAULT_CONTROL_CENTER_ENTITY
+                    )
+                },
+            )
+        ] = selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+        )
+        fields[
+            vol.Optional(
+                CONF_CONTROL_CENTER_PATH,
+                description={
+                    "suggested_value": current.get(
+                        CONF_CONTROL_CENTER_PATH, DEFAULT_CONTROL_CENTER_PATH
                     )
                 },
             )
